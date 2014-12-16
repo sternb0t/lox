@@ -1,0 +1,10 @@
+from __future__ import unicode_literals
+
+# state constants
+STATE_INIT = 0
+STATE_ACQUIRING = 1
+STATE_ACQUIRED = 2
+STATE_RELEASING = 3
+STATE_RELEASED = 4
+STATE_ACQUIRING_TIMEDOUT = 5
+STATE_ACQUIRED_TIMEDOUT = 6
