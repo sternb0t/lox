@@ -1,9 +1,9 @@
 from __future__ import unicode_literals
 
-import time
 import uuid
 
 from .states import *
+from .errors import *
 
 class Lock(object):
     """
@@ -15,30 +15,42 @@ class Lock(object):
         self.state = STATE_INIT
         # parent Lox wrapper class
         self.parent = parent
+        self.backend = parent.backend
         # configuration (may be overriden here?)
         self.config = parent.config
         self.id = id or Lock.generate_id()
+        # this will hold the lock object from the backend
+        self._lock = None
 
     @staticmethod
     def generate_id():
         return uuid.uuid4()
 
     def acquire(self):
+        if self.state not in [STATE_INIT, STATE_RELEASED]:
+            raise LockInUseException("Unable to acquire lock %s because state is %s" % self.id, self.state)
+
         # immediately set state
         self.state = STATE_ACQUIRING
 
         # hit the actual backend here...
-        time.sleep(0.01)
+        # TODO: exception handling
+        self._lock = self.backend.acquire(self.parent.name, self.id)
 
         self.state = STATE_ACQUIRED
         return self
 
     def release(self):
-        # immediately set state
+        if self.state != STATE_ACQUIRED or not self._lock:
+            raise LockNotAcquiredException("Unable to release lock %s because state is %s" % self.id, self.state)
+
         self.state = STATE_RELEASING
 
         # hit the actual backend here...
-        time.sleep(0.01)
+        self._lock.release()
 
         self.state = STATE_RELEASED
         return self
+
+    def clear(self):
+        self.backend.clear(self.parent.name, self.id)

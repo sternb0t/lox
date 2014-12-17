@@ -2,22 +2,36 @@ from __future__ import unicode_literals
 
 from .core.lock import Lock
 from .core.errors import *
+from .backends.redis_lox_backend import RedisLoxBackend
 
-__version__ = "0.0.1"
+__version__ = "0.1"
 
 class Lox(object):
     """
     Main API for distributed locking, with schmear.
     """
-    def __init__(self, name=None):
+    def __init__(self, name=None, config=None):
         # you might want to have multiple of these around, so allow naming each
         self.name = name or "Lox"
         # configuration... tbd build settings
-        self.config = None
+        if not config:
+            self.config = {}
+        else:
+            self.config = config
         # will hold a list of locks we're managing here
         self.locks = {}
         # will hold the lock when used as a context manager
         self.context_lock = None
+        # may want to do lazy connection...
+        self.connect_backend()
+
+    def connect_backend(self):
+        self.backend = None
+        if "redis" in self.config.get("backend"):
+            self.backend = RedisLoxBackend(self.config)
+        if not self.backend:
+            raise BackendConfigException("No backend specified in settings.")
+        self.backend.connect()
 
     def acquire(self, id=None):
         """
@@ -41,9 +55,19 @@ class Lox(object):
             raise LockNotFoundException("No locks to release")
         if id and id not in self.locks:
             raise LockNotFoundException("Lock %s not found" % id)
-        # free it up
+        # free it from the instance level tracking
         lock = self.locks.pop(id)
         return lock.release()
+
+    def clear_all(self):
+        """
+        Purge all locks from the backend without releasing them.
+        This effectively resets the data store.
+        Should only be used for admin, testing, etc.
+        """
+        for id, lock in self.locks.iteritems():
+            lock.clear()
+        self.locks = {}
 
     def __enter__(self):
         """

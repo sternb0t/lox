@@ -5,3 +5,12 @@ class LockAlreadyAcquiredException(BaseException):
 
 class LockNotFoundException(BaseException):
     pass
+
+class BackendConfigException(BaseException):
+    pass
+
+class LockNotAcquiredException(BaseException):
+    pass
+
+class LockInUseException(BaseException):
+    pass
