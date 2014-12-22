@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from .core.lock import Lock
 from .core.errors import *
 from .backends.redis_lox_backend import RedisLoxBackend
+from .backends.postgres_lox_backend import PostgresLoxBackend
 
 __version__ = "0.1"
 
@@ -29,6 +30,8 @@ class Lox(object):
         self.backend = None
         if "redis" in self.config.get("backend"):
             self.backend = RedisLoxBackend(self.config)
+        elif "postgres" in self.config.get("backend"):
+            self.backend = PostgresLoxBackend(self.config)
         if not self.backend:
             raise BackendConfigException("No backend specified in settings.")
         self.backend.connect()

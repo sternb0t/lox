@@ -28,7 +28,7 @@ class Lock(object):
 
     def acquire(self):
         if self.state not in [STATE_INIT, STATE_RELEASED]:
-            raise LockInUseException("Unable to acquire lock %s because state is %s" % self.id, self.state)
+            raise UnexpectedStateException("Unable to acquire lock {} because state is {}".format(self.id, self.state))
 
         # immediately set state
         self.state = STATE_ACQUIRING
@@ -42,12 +42,12 @@ class Lock(object):
 
     def release(self):
         if self.state != STATE_ACQUIRED or not self._lock:
-            raise LockNotAcquiredException("Unable to release lock %s because state is %s" % self.id, self.state)
+            raise UnexpectedStateException("Unable to release lock {} because state is {}".format(self.id, self.state))
 
         self.state = STATE_RELEASING
 
         # hit the actual backend here...
-        self._lock.release()
+        self.backend.release(self._lock)
 
         self.state = STATE_RELEASED
         return self

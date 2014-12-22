@@ -1,9 +1,14 @@
+addons:
+  postgresql: "9.3"
 services:
+  - redis-server
   - redis-server
 language: python
 python:
   - "2.7"
 # command to install dependencies
 install: "pip install -r python/requirements.txt"
+before_script:
+  - psql -c 'create database postgres;' -U postgres
 # command to run tests
 script: nosetests

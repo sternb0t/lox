@@ -1,27 +1,14 @@
 from __future__ import unicode_literals
 
-import unittest
-
 from python.lox import Lox
 from python.core.lock import Lock
 from python.core.errors import *
 from python.core.states import *
 
-class LoxTests(unittest.TestCase):
-
-    def setUp(self):
-        self.config = {"backend": {"redis": "redis://:@localhost:6379/0"}}
-        self.lox = Lox("poppy", config=self.config)
-        self.lox.clear_all()
+class LoxTestsBaseMixin(object):
 
     def tearDown(self):
         self.lox.clear_all()
-    
-    def test_init(self):
-        self.assertEqual(self.lox.name, "poppy")
-        self.assertEqual(self.lox.config, self.config)
-        self.assertEqual(self.lox.locks, {})
-        self.assertIsNone(self.lox.context_lock)
 
     def test_acquire__basic(self):
         # get a lock
@@ -41,6 +28,13 @@ class LoxTests(unittest.TestCase):
         lock = self.lox.acquire(1)
         # make sure it busts if we try this again
         with self.assertRaises(LockAlreadyAcquiredException):
+            self.lox.acquire(1)
+
+    def test_acquire__twice_separate_threads_raises(self):
+        lock = self.lox.acquire(1)
+        # make sure it busts if we try this again, even without the local in the instance dict
+        del self.lox.locks[1]
+        with self.assertRaises(LockInUseException):
             self.lox.acquire(1)
 
     def test_release__basic(self):
@@ -73,7 +67,3 @@ class LoxTests(unittest.TestCase):
             self.assertIsNotNone(lox.context_lock)
             self.assertEqual(lox.context_lock.state, STATE_ACQUIRED)
         self.assertEqual(lox.context_lock.state, STATE_RELEASED)
-
-
-if __name__ == '__main__':
-    unittest.main()

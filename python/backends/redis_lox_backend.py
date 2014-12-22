@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 from redis import StrictRedis
 from redis.lock import Lock
 
+from python.core.errors import *
+
 class RedisLoxBackend(object):
 
     def __init__(self, config):
@@ -16,8 +18,10 @@ class RedisLoxBackend(object):
     def acquire(self, lox_name, lock_id):
         key = self.key(lox_name, lock_id)
         lock = Lock(self.redis_connection, key)
-        lock.acquire(blocking=False)
-        return lock
+        if lock.acquire(blocking=False):
+            return lock
+        else:
+            raise LockInUseException("Lock {} has been acquired previously, possibly by another thread/process, and is not available.".format(key))
 
     def release(self, lock):
         return lock.release()

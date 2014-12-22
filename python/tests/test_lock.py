@@ -11,12 +11,12 @@ class LockTests(unittest.TestCase):
 
     def setUp(self):
         self.config = {"backend": {"redis": "redis://:@localhost:6379/0"}}
-        self.lox = Lox("sesame", config=self.config)
+        self.lox = Lox("sesamebagel", config=self.config)
         self.lox.clear_all()
 
     def tearDown(self):
         self.lox.clear_all()
-    
+
     def test_init(self):
         lock = Lock(self.lox, 1)
         self.assertEqual(lock.parent, self.lox)
