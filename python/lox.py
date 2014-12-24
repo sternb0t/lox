@@ -36,17 +36,25 @@ class Lox(object):
             raise BackendConfigException("No backend specified in settings.")
         self.backend.connect()
 
-    def acquire(self, id=None):
+    def acquire(self, id=None, expires_seconds=None, retry=False, num_tries=None, retry_interval_seconds=None):
         """
         Get a lock with the given ID, using the configured backend provider.
-        :param id: unique identifier for this lock, within this Lox instance
-        :return: the acquired lock object
+        :param id: unique identifier for this lock, within this Lox instance.
+        :param expires_seconds: Automatically expire (i.e release) the lock after this number of seconds.
+                                Defaults to never expire the lock based on a timer.
+        :param retry: if the lock cannot be acquired immediately, should we try to acquire it again later?
+        :param num_tries: try to get this lock this many times before giving up.
+        :param retry_interval_seconds: wait this number of seconds between retries.
+        :return: the acquired Lock object
         """
         if id and id in self.locks:
             raise LockAlreadyAcquiredException("Lock %s cannot be acquired more than once." % id)
         lock = Lock(self, id)
         self.locks[lock.id] = lock
-        return lock.acquire()
+        return lock.acquire(expires_seconds=expires_seconds,
+                            retry=retry,
+                            num_tries=num_tries,
+                            retry_interval_seconds=retry_interval_seconds)
 
     def release(self, id=None):
         """

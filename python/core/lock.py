@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import time
 import uuid
 
 from .states import *
@@ -24,24 +25,53 @@ class Lock(object):
 
     @staticmethod
     def generate_id():
-        return uuid.uuid4()
+        return uuid.uuid1()
 
-    def acquire(self):
-        if self.state not in [STATE_INIT, STATE_RELEASED]:
+    def acquire(self, expires_seconds=None, retry=False, num_tries=None, retry_interval_seconds=None):
+        """
+        Acquire a lock, with optional retry logic. See Lox.acquire for param details.
+        """
+        if self.state not in OK_TO_ACQUIRE:
             raise UnexpectedStateException("Unable to acquire lock {} because state is {}".format(self.id, self.state))
 
-        # immediately set state
         self.state = STATE_ACQUIRING
 
-        # hit the actual backend here...
-        # TODO: exception handling
-        self._lock = self.backend.acquire(self.parent.name, self.id)
+        if not retry:
+            num_tries = 1
+        if not num_tries:
+            num_tries = self.config.get("num_tries", 3)
+        if retry_interval_seconds is None:
+            retry_interval_seconds = self.config.get("retry_interval_seconds", 1)
 
-        self.state = STATE_ACQUIRED
+        counter = 1
+        while counter <= num_tries:
+            try:
+                self._lock = self.backend.acquire(self.parent.name, self.id)
+            except LockInUseException as ex:
+                if not retry:
+                    self.state = STATE_ACQUIRING_EXCEPTION
+                    raise LockInUseException("Could not acquire lock {} because it is in use. " \
+                                             "Not retrying.".format(self.id))
+                counter += 1
+                self.state = STATE_ACQUIRING_RETRYING
+                if retry_interval_seconds:
+                    time.sleep(retry_interval_seconds)
+            else:
+                self.state = STATE_ACQUIRED
+                break
+
+        if self.state == STATE_ACQUIRING_RETRYING:
+            self.state = STATE_ACQUIRING_TIMEDOUT
+            raise LockInUseException("Could not acquire lock {} after {} attempts because " \
+                                     "it is in use".format(self.id, num_tries))
+
         return self
 
     def release(self):
-        if self.state != STATE_ACQUIRED or not self._lock:
+        """
+        Explicitly release a lock.
+        """
+        if self.state not in OK_TO_RELEASE or not self._lock:
             raise UnexpectedStateException("Unable to release lock {} because state is {}".format(self.id, self.state))
 
         self.state = STATE_RELEASING
@@ -53,4 +83,7 @@ class Lock(object):
         return self
 
     def clear(self):
+        """
+        Delete a lock without releasing it (meant as a cleanup / admin / testing function).
+        """
         self.backend.clear(self.parent.name, self.id)
