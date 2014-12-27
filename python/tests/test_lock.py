@@ -65,16 +65,16 @@ class LockTests(mox.MoxTestBase):
         self.lock.acquire(retry=True, num_tries=2, retry_interval_seconds=0.5)
         self.assertEqual(self.lock.state, states.STATE_ACQUIRED)
 
-    def test_acquire_works_on_3rd_try(self):
+    def test_acquire__works_on_3rd_try(self):
         self.lock = Lock(self.lox)
 
         # stub out the back end so we can simulate failures
         self.mox.StubOutWithMock(self.lock.backend, "acquire")
 
         # two fails, one success
-        self.lock.backend.acquire(self.lock.parent.name, self.lock.id).AndRaise(errors.LockInUseException)
-        self.lock.backend.acquire(self.lock.parent.name, self.lock.id).AndRaise(errors.LockInUseException)
-        self.lock.backend.acquire(self.lock.parent.name, self.lock.id).AndReturn("3rd time's a charm")
+        self.lock.backend.acquire(self.lock.parent.name, self.lock.id, expires_seconds=None).AndRaise(errors.LockInUseException)
+        self.lock.backend.acquire(self.lock.parent.name, self.lock.id, expires_seconds=None).AndRaise(errors.LockInUseException)
+        self.lock.backend.acquire(self.lock.parent.name, self.lock.id, expires_seconds=None).AndReturn("3rd time's a charm")
 
         self.mox.ReplayAll()
 
@@ -82,16 +82,16 @@ class LockTests(mox.MoxTestBase):
 
         self.assertEqual(self.lock.state, states.STATE_ACQUIRED)
 
-    def test_acquire_fails_multiple_tries(self):
+    def test_acquire__fails_multiple_tries(self):
         self.lock = Lock(self.lox)
 
         # stub out the back end so we can simulate failures
         self.mox.StubOutWithMock(self.lock.backend, "acquire")
 
         # two fails, one success
-        self.lock.backend.acquire(self.lock.parent.name, self.lock.id).AndRaise(errors.LockInUseException)
-        self.lock.backend.acquire(self.lock.parent.name, self.lock.id).AndRaise(errors.LockInUseException)
-        self.lock.backend.acquire(self.lock.parent.name, self.lock.id).AndRaise(errors.LockInUseException)
+        self.lock.backend.acquire(self.lock.parent.name, self.lock.id, expires_seconds=None).AndRaise(errors.LockInUseException)
+        self.lock.backend.acquire(self.lock.parent.name, self.lock.id, expires_seconds=None).AndRaise(errors.LockInUseException)
+        self.lock.backend.acquire(self.lock.parent.name, self.lock.id, expires_seconds=None).AndRaise(errors.LockInUseException)
 
         self.mox.ReplayAll()
 
@@ -100,14 +100,14 @@ class LockTests(mox.MoxTestBase):
 
         self.assertEqual(self.lock.state, states.STATE_ACQUIRING_TIMEDOUT)
 
-    def test_acquire_fails_no_retries(self):
+    def test_acquire__fails_no_retries(self):
         self.lock = Lock(self.lox)
 
         # stub out the back end so we can simulate failures
         self.mox.StubOutWithMock(self.lock.backend, "acquire")
 
         # two fails, one success
-        self.lock.backend.acquire(self.lock.parent.name, self.lock.id).AndRaise(errors.LockInUseException)
+        self.lock.backend.acquire(self.lock.parent.name, self.lock.id, expires_seconds=None).AndRaise(errors.LockInUseException)
 
         self.mox.ReplayAll()
 
@@ -116,7 +116,7 @@ class LockTests(mox.MoxTestBase):
 
         self.assertEqual(self.lock.state, states.STATE_ACQUIRING_EXCEPTION)
 
-    def test_acquire_unexpected_state(self):
+    def test_acquire__unexpected_state(self):
         self.lock = Lock(self.lox)
         bad_states = [v for k, v in states.__dict__.iteritems()
                       if k.startswith("STATE_") and v not in states.OK_TO_ACQUIRE]
@@ -124,6 +124,11 @@ class LockTests(mox.MoxTestBase):
             self.lock.state = bad_state
             with self.assertRaises(errors.UnexpectedStateException):
                 self.lock.acquire()
+
+    def test_acquire__expiration(self):
+        self.lock = Lock(self.lox)
+        self.lock.acquire(expires_seconds=1)
+        self.assertEqual(self.lock.expires_seconds, 1)
 
     ## ---- release ---- ##
 
@@ -135,7 +140,7 @@ class LockTests(mox.MoxTestBase):
         self.lock.release()
         self.assertEqual(self.lock.state, states.STATE_RELEASED)
 
-    def test_release_unexpected_state(self):
+    def test_release__unexpected_state(self):
         self.lock = Lock(self.lox)
         bad_states = [v for k, v in states.__dict__.iteritems()
                       if k.startswith("STATE_") and v not in states.OK_TO_RELEASE]

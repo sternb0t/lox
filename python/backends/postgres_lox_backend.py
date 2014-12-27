@@ -1,27 +1,33 @@
 from __future__ import unicode_literals
 
-from datetime import datetime
+from datetime import datetime, timedelta
+import threading
 
 import psycopg2
 import pytz
 
 from python.core.errors import *
+from base_lox_backend import BaseLoxBackend, BackendLock
 
-class PostgresLoxBackend(object):
+class PostgresLoxBackend(BaseLoxBackend):
     """
     A lox provider that uses PostreSQL as the backend lock store.
     Note that autocommit is not used, so that we can control transaction manually.
     """
 
+    server_handles_expiration = False
+
     def __init__(self, config):
-        self.config = config
-        self.connection = None
+        super(PostgresLoxBackend, self).__init__(config)
+        self.background_timer_delay = 0.5
 
     def connect(self):
         url = self.config["backend"]["postgres"]
         self.connection = psycopg2.connect(url)
         self.cursor = self.connection.cursor()
         self.ensure_schema()
+
+    ## ------- schema ------- ##
 
     def ensure_schema(self):
         """
@@ -46,7 +52,7 @@ class PostgresLoxBackend(object):
         # 1. make sure the lox table exists
         # 2. if not, create it
         """
-        if not self.__exists("public", "lox", "r"):
+        if not self.__exists_schema("public", "lox", "r"):
             self.cursor.execute("""
             CREATE TABLE lox (
                 key text NOT NULL,
@@ -71,11 +77,11 @@ class PostgresLoxBackend(object):
         1. make sure the PK exists
         2. if not, create it
         """
-        if not self.__exists("public", "pk_lox", "i"):
+        if not self.__exists_schema("public", "pk_lox", "i"):
             self.cursor.execute("""ALTER TABLE lox ADD CONSTRAINT pk_lox PRIMARY KEY (key);""")
         return True
 
-    def __exists(self, namespace, relname, relkind):
+    def __exists_schema(self, namespace, relname, relkind):
         self.cursor.execute("""
             SELECT EXISTS (
                 SELECT 1
@@ -88,38 +94,42 @@ class PostgresLoxBackend(object):
         """, (namespace, relname, relkind))
         return self.cursor.fetchone()[0]
 
-    def acquire(self, lox_name, lock_id):
+    ## ------- acquire, release, clear ------- ##
+
+    def acquire(self, lox_name, lock_id, expires_seconds=None):
         """
         insert a row into the postgres lox table to persist the lock
         commit and return a simple tuple with lock details
         """
         key = self.key(lox_name, lock_id)
         acquire_ts = datetime.now(tz=pytz.UTC)
+        expire_ts = None
+        if expires_seconds:
+            expire_ts = acquire_ts + timedelta(seconds=expires_seconds)
         try:
             self.cursor.execute("""
-               INSERT INTO lox (key, acquire_ts)
-               VALUES (%s, %s);
-            """, (key, acquire_ts)
+               INSERT INTO lox (key, acquire_ts, expire_ts)
+               VALUES (%s, %s, %s);
+            """, (key, acquire_ts, expire_ts)
             )
-            self.connection.commit()
         except psycopg2.IntegrityError as ex:
             self.connection.rollback()
-            raise LockInUseException("Lock {} has been acquired previously, possibly by another thread/process, and is not available.".format(key))
+            raise LockInUseException("Lock {} has been acquired previously, possibly by another thread/process, "
+                                     "and is not available.".format(key))
         else:
-            return (lox_name, lock_id, acquire_ts)
+            self.connection.commit()
+            return BackendLock(key, lox_name, lock_id, acquire_ts=acquire_ts, expire_ts=expire_ts)
 
     def release(self, lock):
         """
-        unpack simple lock tuple
+        'lock' param is a BackendLock
         delete the corresponding row
         commit and return None
         """
-        (lox_name, lock_id, acquire_ts) = lock
-        key = self.key(lox_name, lock_id)
         self.cursor.execute("""
            DELETE FROM lox
            WHERE key = %s and acquire_ts = %s;
-        """, (key, acquire_ts)
+        """, (lock.key, lock.acquire_ts)
         )
         self.connection.commit()
 
@@ -134,7 +144,4 @@ class PostgresLoxBackend(object):
         """, (key,)
         )
         self.connection.commit()
-
-    def key(self, lox_name, lock_id):
-        return "{}_{}".format(lox_name, lock_id)
 

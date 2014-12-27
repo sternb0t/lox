@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import unittest
+import time
 
 from python.lox import Lox
 
@@ -21,6 +22,16 @@ class LoxRedisTests(LoxTestsBaseMixin, unittest.TestCase):
         self.assertEqual(self.lox.config, self.config)
         self.assertEqual(self.lox.locks, {})
         self.assertIsNone(self.lox.context_lock)
+
+    def test_acquire__timeout(self):
+        lock = self.lox.acquire(expires_seconds=0.5)
+        # make sure the underlying key exists
+        self.assertTrue(lock._lock.provider_lock.redis.exists(lock.key))
+        # wait long enough for the lock to expire
+        time.sleep(0.7)
+        # make sure redis removed the lock
+        self.assertFalse(lock._lock.provider_lock.redis.exists(lock.key))
+
 
 if __name__ == '__main__':
     unittest.main()

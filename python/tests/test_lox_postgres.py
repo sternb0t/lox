@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import unittest
 from datetime import datetime
+import time
 
 import psycopg2
 import pytz
@@ -9,6 +10,7 @@ import pytz
 from python.lox import Lox
 from python.core.lock import Lock
 from python.core.errors import *
+from python.core.states import *
 from test_lox_base import LoxTestsBaseMixin
 
 class LoxPostgresTests(LoxTestsBaseMixin, unittest.TestCase):
@@ -120,6 +122,14 @@ class LoxPostgresTests(LoxTestsBaseMixin, unittest.TestCase):
         self.lox.backend.cursor.execute(sql, test_row)
         return self.lox.backend.cursor.fetchone()
 
+    def test_acquire__expiration(self):
+        lock = self.lox.acquire(expires_seconds=0.5)
+
+    def test_acquire__expiration__check_state(self):
+        lock = self.lox.acquire(expires_seconds=1)
+        self.assertEqual(lock.state, STATE_ACQUIRED)
+        time.sleep(1.5)
+        self.assertEqual(lock.state, STATE_EXPIRED)
 
 if __name__ == '__main__':
     unittest.main()
