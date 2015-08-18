@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import unittest
 import time
 
-from python.lox import Lox
+from lox.lox import Lox
 
 from test_lox_base import LoxTestsBaseMixin
 

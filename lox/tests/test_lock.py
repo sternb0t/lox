@@ -5,10 +5,10 @@ from uuid import UUID
 
 import mox
 
-from python.lox import Lox
-from python.core.lock import Lock
-from python.core import states
-from python.core import errors
+from lox.lox import Lox
+from lox.core.lock import Lock
+from lox.core import states
+from lox.core import errors
 
 class LockTests(mox.MoxTestBase):
 

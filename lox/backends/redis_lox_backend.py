@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from redis import StrictRedis
 from redis.lock import Lock
 
-from python.core.errors import *
+from lox.core.errors import *
 from base_lox_backend import BaseLoxBackend, BackendLock
 
 class RedisLoxBackend(BaseLoxBackend):

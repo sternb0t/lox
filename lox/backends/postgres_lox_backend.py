@@ -6,7 +6,7 @@ import threading
 import psycopg2
 import pytz
 
-from python.core.errors import *
+from lox.core.errors import *
 from base_lox_backend import BaseLoxBackend, BackendLock
 
 class PostgresLoxBackend(BaseLoxBackend):

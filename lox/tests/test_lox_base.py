@@ -1,9 +1,9 @@
 from __future__ import unicode_literals
 
-from python.lox import Lox
-from python.core.lock import Lock
-from python.core.errors import *
-from python.core.states import *
+from lox.lox import Lox
+from lox.core.lock import Lock
+from lox.core.errors import *
+from lox.core.states import *
 
 class LoxTestsBaseMixin(object):
 
