@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from lox.lox import DEFAULT_LOX_CONFIG
 from lox.lox import Lox
 from lox.core.lock import Lock
 from lox.core.errors import *
@@ -59,11 +60,17 @@ class LoxTestsBaseMixin(object):
 
     def test_ctx_manager(self):
         # do this twice to make sure context_lock is handled correctly
-        self.__ctx_manager()
-        self.__ctx_manager()
+        self.__ctx_manager(self.config)
+        self.__ctx_manager(self.config)
 
-    def __ctx_manager(self):
-        with Lox(config=self.config) as lox:
-            self.assertIsNotNone(lox.context_lock)
-            self.assertEqual(lox.context_lock.state, STATE_ACQUIRED)
-        self.assertEqual(lox.context_lock.state, STATE_RELEASED)
+    def test_ctx_manager_default_config(self):
+        # config should default to the default
+        test_lox = self.__ctx_manager(None)
+        self.assertEqual(test_lox.config, DEFAULT_LOX_CONFIG)
+
+    def __ctx_manager(self, test_config):
+        with Lox(config=test_config) as test_lox:
+            self.assertIsNotNone(test_lox.context_lock)
+            self.assertEqual(test_lox.context_lock.state, STATE_ACQUIRED)
+        self.assertEqual(test_lox.context_lock.state, STATE_RELEASED)
+        return test_lox
