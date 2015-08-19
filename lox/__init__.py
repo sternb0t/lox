@@ -12,11 +12,15 @@ Currently supported backends:
 1. Redis
 2. PostgreSQL
 
-A distributed lock can easily be wrapped around code that needs to be atomic:
+Redis on localhost with default port & db is the default backend.
+
+A distributed lock can be wrapped around mult-process code that needs to be atomic:
 
     >>> from lox import Lox
-    >>> with Lox('my-key', 'redis'):
+    >>> with Lox():
     ...     do_something_with_race_conditions()
+
+Read more in the README.md!
 
 :copyright: (c) 2015 by Jeff Sternberg.
 :license: MIT, see LICENSE for more details.

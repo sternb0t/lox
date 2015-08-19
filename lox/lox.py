@@ -6,6 +6,12 @@ from .backends.redis_lox_backend import RedisLoxBackend
 from .backends.postgres_lox_backend import PostgresLoxBackend
 
 
+DEFAULT_LOX_CONFIG = {
+    "backend": {
+        "redis": "redis://:@localhost:6379/0"
+    }
+}
+
 class Lox(object):
     """
     Main API for distributed locking, with schmear.
@@ -13,9 +19,9 @@ class Lox(object):
     def __init__(self, name=None, config=None):
         # you might want to have multiple of these around, so allow naming each
         self.name = name or "Lox"
-        # configuration... tbd build settings
+        # configuration: default to redis, for now
         if not config:
-            self.config = {}
+            self.config = DEFAULT_LOX_CONFIG
         else:
             self.config = config
         # will hold a list of locks we're managing here
