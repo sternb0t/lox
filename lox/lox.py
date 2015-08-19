@@ -5,7 +5,6 @@ from .core.errors import *
 from .backends.redis_lox_backend import RedisLoxBackend
 from .backends.postgres_lox_backend import PostgresLoxBackend
 
-__version__ = "0.1"
 
 class Lox(object):
     """
